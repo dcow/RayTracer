@@ -35,14 +35,15 @@ Material refractive(float3(0.1f,0.1f,0.1f),
                     float3(0.0f,0.0f,0.0f), 
                     float3(0.0f,0.0f,0.0f), 
                     float3(0.2f,0.2f,0.2f), 
-                    float3(0.8f,0.8f,0.8f),
+                    float3(10.8f,0.8f,0.8f),
                 5, 1.52, 
                 true, true, false);
 Material mirror(float3(0.1,0.1,0.1), float3(0,0,0), float3(1,1,1), float3(1,1,1), float3(0,0,0),
                 5, 1, 
                 true, false, false);
 Sphere sphere(float3(0, 0, 0), 1, &refractive);
-Sphere world(float3(0,-55, -2.5), 50, &mirror);
+Plane  world(float3(0, 1, 0), 5, &mirror);
+//Sphere world(float3(0, -55, 2.5), 50, &mirror);
 Sphere wall(float3(0, 0, -55), 50, &material);
 Sphere smallleft(float3(-2, 0, 0), 0.5, &reflective);
 Sphere smallright(float3(2, 0, 0), 0.5, &reflective);
@@ -65,12 +66,12 @@ float3 cast(const Ray &ray, RGB baseColor, Hit *bestHit) {
     bestHit->t = INFINITY;
     for (i = 0; i < OBJS; i++) {
         h = objects[i]->intersect(ray);
-        *bestHit = (h.t < bestHit->t) ? h : *bestHit; 
+        *bestHit = (h.t < bestHit->t && h.t >= 0) ? h : *bestHit; 
     }
     
     //// Calculate the color..
     // Did the ray even hit an object?
-    if (bestHit->t >= INFINITY) {
+    if (bestHit->t >= INFINITY || bestHit->t < 0) {
         return background;
     }
     
@@ -153,7 +154,7 @@ RGB traceRec(const Ray ray, int depth, RGB color, bool inside) {
     if (hit.t >= INFINITY)
         return retcolor;
     
-    float cosAngle = -hit.normal.dot(ray.dir);
+    float cosAngle = hit.normal.dot(-ray.dir);
     if (hit.material->reflective && cosAngle > 0) {
         float3 reflectedDirection = ray.dir + (hit.normal * 2 * cosAngle);
         Ray newRay(hit.position + (hit.normal * 0.01), reflectedDirection);
@@ -162,16 +163,20 @@ RGB traceRec(const Ray ray, int depth, RGB color, bool inside) {
     
     float n;
     if  (hit.material->refractive) {
-        n = inside ? hit.material->n : 1/hit.material->n;
-        float cosRefrAngle2 = ((1-(n*n)) * (1-(cosAngle*cosAngle)));
+        n = (inside) ? hit.material->n : 1/hit.material->n;
+        float cosRefrAngle2 = (1 - ((n*n) * (1-(cosAngle*cosAngle))));
         // Check for total internal reflection..
         float cosRefrAngle = (cosRefrAngle2 > 0) ? sqrtf(cosRefrAngle2) : 0.0f;
+        //float cosRefrAngle = sqrtf(cosRefrAngle2);
         
         // Calculate refracted ray: Rr = (n * V) + (n * c1 - c2) * N
-        float3 refNormal = (inside) ? hit.normal : -hit.normal;
-        float3 refractedDirection = (ray.dir * n) + (refNormal * ((n * cosAngle) - cosRefrAngle));
-        Ray refractedRay(hit.position + (-refNormal * 0.01), refractedDirection);
+        float3 refNormal = (inside) ? -hit.normal : hit.normal;
+        float3 refractedDirection = (cosAngle > 0) ? 
+                (ray.dir * n) + (refNormal * ((n * cosAngle) - cosRefrAngle)) : 
+                (ray.dir * n) - (refNormal * ((n * cosAngle) - cosRefrAngle)) ;
+        Ray refractedRay(hit.position - (refNormal * 0.01), refractedDirection);
 
+        
         retcolor += hit.material->kt * traceRec(refractedRay, depth, color, !inside);
                                                           
     }
@@ -185,12 +190,9 @@ inline RGB trace(const Ray ray) {
 }
 
 
-void computeImage()
-{
-    for(int j = 0; j < screenHeight; j++)
-	{
-        for(int i = 0; i < screenWidth; i++)
-		{
+void computeImage() {
+    for(int j = 0; j < screenHeight; j++) {
+        for(int i = 0; i < screenWidth; i++) {
 			float3 pixelColor = float3(0, 0, 0);
 			float2 ndcPixelCentre( (2.0f * i - screenWidth) / screenWidth, (2.0f * j - screenHeight) / screenHeight );
 
@@ -199,7 +201,6 @@ void computeImage()
 			image[j*screenWidth + i] = trace(ray);
 		}
 	}
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -14,5 +14,6 @@
 #include "Ray.h"
 #include "Camera.h"
 #include "Sphere.h"
+#include "Plane.h"
 #include "PointLightSource.h"
 #include "DirectionalLightSource.h"

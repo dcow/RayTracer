@@ -13,6 +13,11 @@ public:
 	{
 		t = INFINITY;
 	}
+    Hit(float3 position, float3 normal, Material * m):
+    position(position), normal(normal), material(m) {
+        Hit();
+    }
+    
 	float t;
 	float3 position;
 	float3 normal;
