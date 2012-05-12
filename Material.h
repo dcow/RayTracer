@@ -34,6 +34,7 @@ public:
      kd(kd),
      ks(ks), 
      kr(kr),
+     kt(kt),
      shininess(shine), 
      n(n),
      reflective(reflective),

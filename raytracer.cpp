@@ -31,11 +31,11 @@ LightSource* lightSources[LIGHTS] = {&pl0, &pl1, &pl2, &pl3, &dl0};
 // Objects:
 Material material;
 Material reflective(true, false, false);
-Material refractive(float3(0.1f,0.1f,0.1f), 
+Material refractive(float3(0.0f,0.0f,0.0f), 
                     float3(0.0f,0.0f,0.0f), 
                     float3(0.0f,0.0f,0.0f), 
-                    float3(0.2f,0.2f,0.2f), 
-                    float3(10.8f,0.8f,0.8f),
+                    float3(0.1f,0.1f,0.1f), 
+                    float3(1.0f,1.0f,1.0f),
                 5, 1.52, 
                 true, true, false);
 Material mirror(float3(0.1,0.1,0.1), float3(0,0,0), float3(1,1,1), float3(1,1,1), float3(0,0,0),
@@ -155,6 +155,7 @@ RGB traceRec(const Ray ray, int depth, RGB color, bool inside) {
         return retcolor;
     
     float cosAngle = hit.normal.dot(-ray.dir);
+    
     if (hit.material->reflective && cosAngle > 0) {
         float3 reflectedDirection = ray.dir + (hit.normal * 2 * cosAngle);
         Ray newRay(hit.position + (hit.normal * 0.01), reflectedDirection);
@@ -163,22 +164,24 @@ RGB traceRec(const Ray ray, int depth, RGB color, bool inside) {
     
     float n;
     if  (hit.material->refractive) {
-        n = (inside) ? hit.material->n : 1/hit.material->n;
+        n = (inside) ? (hit.material->n) : (1/hit.material->n);
         float cosRefrAngle2 = (1 - ((n*n) * (1-(cosAngle*cosAngle))));
         // Check for total internal reflection..
+        bool stillinside = (cosRefrAngle2 >= 0) ? !inside : inside;
         float cosRefrAngle = (cosRefrAngle2 > 0) ? sqrtf(cosRefrAngle2) : 0.0f;
         //float cosRefrAngle = sqrtf(cosRefrAngle2);
         
         // Calculate refracted ray: Rr = (n * V) + (n * c1 - c2) * N
         float3 refNormal = (inside) ? -hit.normal : hit.normal;
+        //float3 refractedDirection = -refNormal;
+        
         float3 refractedDirection = (cosAngle > 0) ? 
-                (ray.dir * n) + (refNormal * ((n * cosAngle) - cosRefrAngle)) : 
-                (ray.dir * n) - (refNormal * ((n * cosAngle) - cosRefrAngle)) ;
+                (ray.dir * n) - (refNormal * ((n * cosAngle) - cosRefrAngle)) : 
+                (ray.dir * n) + (refNormal * ((n * cosAngle) - cosRefrAngle)) ;
+        
         Ray refractedRay(hit.position - (refNormal * 0.01), refractedDirection);
 
-        
-        retcolor += hit.material->kt * traceRec(refractedRay, depth, color, !inside);
-                                                          
+        retcolor += hit.material->kt * traceRec(refractedRay, depth, color, stillinside); 
     }
         
         
